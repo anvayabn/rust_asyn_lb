@@ -1,0 +1,17 @@
+v1.0
+Design a Load Balancer
+
+key features:
+- Asynchronous TCP server 
+- Both single threaded and multi threaded 
+- layer 4 loadbalancer 
+- layer 7 load balancer 
+
+What does it do ?
+Layer 4 loadbalancer distributes traffic from the client IP 
+Layer 7 loadbalancer distributes traffic based on the http payload 
+
+RoadMap 
+1) Implement a asynchronous server
+2) Implement multithreaded and single threaded option 
+3) 
