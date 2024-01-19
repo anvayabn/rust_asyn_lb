@@ -1,14 +1,16 @@
+use std::alloc::handle_alloc_error;
 use std::os::windows::{process, thread};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, mpsc};
+use tokio::sync::{Mutex};
 use tokio::signal;
 use log::{debug, error, log_enabled, info, Level, trace};
 use env_logger;
 
 use thread_id;
 
+mod manager;
 mod client;
 #[tokio::main]
 async fn main () -> Result<(), Box<dyn std::error::Error>>{
@@ -16,13 +18,26 @@ async fn main () -> Result<(), Box<dyn std::error::Error>>{
 
     debug!( "Thread id of async main {}", thread_id::get());
 
+    /* create a channel  Multi Producer and single consumer  
+       The Manager thread is the consumer of the data, all 
+       the client thread after exiting will send the  latency reported 
+       in their respective threads */
+    let (tx, rx) = mpsc::channel::<u128>(); 
+
+    /* Open a manager thread that used to get data from 
+    the  client handling threads for now lets say it receives the latency measurment */
+    let m_handler = std::thread::spawn(move || {
+        manager::start_manager_t(rx); 
+    });
+
+
     /* Open Listener  */
     let lt = 
         TcpListener::bind("127.0.0.1:8080").await?;
 
     /* after binding the socket 
         create shared listener  */ 
-    let lt = Arc::new(&lt); 
+    let lt = Arc::new(lt); 
     let shutdown_signal = Arc::new(Mutex::new(false)); 
 
     /* Loop to accept connection and spawn task to 
@@ -34,6 +49,10 @@ async fn main () -> Result<(), Box<dyn std::error::Error>>{
         and the shut down between diffrent iterations */
         let lt = Arc::clone(&lt); 
         let shutdown_signal = Arc::clone(&shutdown_signal); 
+
+        /* create a clone of tx of the mpsc channel 
+                to provide to the client handler  */    
+        let tx1 = tx.clone();  
 
         /* Using tokio select! to switch between 
             and monitor SIGNALS and IO  */
@@ -51,7 +70,7 @@ async fn main () -> Result<(), Box<dyn std::error::Error>>{
                     Ok((socket, addr)) => { 
                         info!("Got connection from a client {addr}"); 
                         tokio::spawn(async move {
-                            client::handle_client::handle_client(socket).await; 
+                            client::handle_client::handle_client(socket, tx1).await; 
                         }); 
                     }
                     Err(e) => { 
@@ -67,6 +86,8 @@ async fn main () -> Result<(), Box<dyn std::error::Error>>{
             }
         }
     }
+    drop(tx);
+    m_handler.join().unwrap(); 
 
     Ok(())
 
