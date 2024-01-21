@@ -21,7 +21,7 @@ async fn main () -> Result<(), Box<dyn std::error::Error>>{
        The Manager thread is the consumer of the data, all 
        the client thread after exiting will send the  latency reported 
        in their respective threads */
-    let (tx, rx) = mpsc::channel::<u128>(); 
+    let (tx, rx) = mpsc::channel::<manager::DataClient>(); 
 
     /* Open a manager thread that used to get data from 
     the  client handling threads for now lets say it receives the latency measurment */

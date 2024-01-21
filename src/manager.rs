@@ -22,38 +22,32 @@ TO:DO
 */
 pub struct DataClient{ 
     pub threadid : usize , 
-    pub av_latency: f64, 
+    pub av_latency: u128, 
     pub no_request: u32, 
     pub bytes_data: usize,
 }
 
 impl DataClient { 
 
-    pub fn new(tid: usize, al: f64, nr: u32, by: usize) -> DataClient {
+    pub fn new(tid: usize, al: u128, nr: u32, by: usize) -> DataClient {
         DataClient {threadid: tid, av_latency: al, no_request: nr, bytes_data: by}
     }
 }
-pub fn start_manager_t(rx: std::sync::mpsc::Receiver<u128>) { 
+pub fn start_manager_t(rx: std::sync::mpsc::Receiver<DataClient>) { 
 
     debug!( "Manager thread  starting ... {}"
                         , thread_id::get()); 
 
     /* loop and keep checking for updates 
                             on the channel */
-    let mut total_latency = 0f64;
-    let mut count = 0u64 ;  
     loop { 
-        // check for latency updates from the 
+        // check for report updates from the 
         let lat = rx.recv(); 
         match lat{ 
-            /* if received latency add to total latency  */
-            Ok(lat) => { 
-                total_latency += lat as f64; 
-                count += 1; 
-
-                let avg_latency = total_latency / count as f64; 
-                info!( "Average latency { } for { } requests", 
-                            avg_latency, count);  
+            /* if received report */
+            Ok(lat) => {
+                info!("Thread-Id: { }, Latency: { }, Requests: { }
+                    Bytes: { }", lat.threadid, lat.av_latency, lat.no_request, lat.bytes_data); 
             }, 
             Err(e)  => {
                 debug!("Received something fishy { }", e); 

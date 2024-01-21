@@ -6,12 +6,17 @@ pub mod handle_client{
     use log::{debug, error, log_enabled, info, Level, trace};
     use std::sync::{Arc, mpsc};
 
+    use crate::manager; 
 
-    pub async fn handle_client( mut client_socket: TcpStream, tx: std::sync::mpsc::Sender<u128>) { 
+    pub async fn handle_client( mut client_socket: TcpStream, tx: std::sync::mpsc::Sender<manager::DataClient>) { 
+        let tid = thread_id::get(); 
+        debug!( "Thread id of spawned task {}", tid);
 
-        debug!( "Thread id of spawned task {}", thread_id::get());
         let mut buf = [0; 1024]; 
-    
+
+        let mut total_bytes_sent = 0usize;
+        let mut count = 0u32 ; 
+
         loop{
             let start = SystemTime::now(); 
             match client_socket.read(&mut buf).await{
@@ -35,17 +40,27 @@ pub mod handle_client{
             match client_socket.write(send_buf ).await{ 
                 Ok(n) => { 
                     info!("Written {n} bytes of data to client"); 
+                    total_bytes_sent += n ; 
                 }, 
                 Err(e) => {
                     error!("Failed to write to socket: {}", e)
                 }
             };
             let stop = SystemTime::now(); 
+
+            /* Did a request respose */
+            count += 1 ; 
+            
+            /* after each rr we send a report to manager */
             let latency = stop.duration_since(start)
                             .expect("System Time failed")
                             .as_nanos();
             
-            match tx.send(latency) { 
+            /* Create a Data Client */
+            let report = manager::DataClient::new(tid, latency, 
+                                        count, total_bytes_sent); 
+
+            match tx.send(report) { 
                 Ok(_) =>{ 
                     debug!( "Sent latency info to manager {latency} ms"); 
                 },
