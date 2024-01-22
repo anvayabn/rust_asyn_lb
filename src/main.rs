@@ -8,11 +8,17 @@ use log::{debug, error, log_enabled, info, Level, trace};
 use env_logger;
 
 use thread_id;
+use clap::Parser; 
 
 mod manager;
 mod client;
+mod errors;
+mod utils; 
 #[tokio::main]
 async fn main () -> Result<(), Box<dyn std::error::Error>>{
+
+    /* Command parsing  */
+
     env_logger::init(); 
 
     debug!( "Thread id of async main {}", thread_id::get());
